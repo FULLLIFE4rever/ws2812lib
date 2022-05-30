@@ -50,7 +50,7 @@
 volatile uint32_t WS2812_buf[WS2812_SINGLE*2];
 volatile ws2812color_t color_buf[WS2812_DIOD] = {0};
 uint16_t ws2812_bufcount = 0;
-uint16_t ws2812_max = WS2812_DIOD+2;
+uint16_t ws2812_max = WS2812_DIOD+4;
 uint16_t high;
 uint16_t low;
 
@@ -74,12 +74,12 @@ void WS2812_Init(void)
     APBfq = HAL_RCC_GetPCLK2Freq();
     APBfq *= (RCC->CFGR & RCC_CFGR_PPRE2) == 0 ? 1 : 2;
 #endif
-	APBfq /= (uint32_t) (400 * 1000);  // 800 KHz - 1.25us
+	APBfq /= (uint32_t) (800 * 1000);  // 800 KHz - 1.25us
 	TIMER.Instance->PSC = 0;                        // dummy hardcode now
     TIMER.Instance->ARR = (uint16_t) (APBfq - 1);   // set timer prescaler
     TIMER.Instance->EGR = 1;                        // update timer registers
 		high = (uint8_t) (APBfq * 58/100);     // Log.1 - 56% - 0.70us
-    low	 = (uint8_t) (APBfq * 10/100);     // Log.0 - 28% - 0.35us
+    low	 = (uint8_t) (APBfq * 28/100);     // Log.0 - 28% - 0.35us
 	
 	  TIM_CCxChannelCmd(TIMER.Instance, TIM_CH, TIM_CCx_ENABLE); // Enable GPIO to IDLE state
     HAL_Delay(1); // Make some delay
@@ -113,27 +113,28 @@ void WS2812_SetLed(uint8_t colR,uint8_t colG,uint8_t colB, uint16_t ledX,uint16_
 	WS2812_SetColour(colR,colG, colB, pos);
 }
 
-void WS2812_SetCol(uint8_t colR,uint8_t colG,uint8_t colB, uint16_t ledX)
+void WS2812_SetRow(uint8_t colR,uint8_t colG,uint8_t colB, uint16_t ledX)
 {
+	ledX%=WS2812_DIODCOLS;
 	if(ledX >= WS2812_DIODROWS) return;
 	else
 	{
 		for(uint8_t i = 0; i < WS2812_DIODCOLS;i++)
 		{
-			WS2812_SetLed(colR,colG,colB,ledX,i*WS2812_DIODCOLS);
+			WS2812_SetLed(colR,colG,colB,ledX,i);
 		}
 	}
 }
 
-void WS2812_SetRow(uint8_t colR,uint8_t colG,uint8_t colB, uint16_t ledY)
+void WS2812_SetCol(uint8_t colR,uint8_t colG,uint8_t colB, uint16_t ledY)
 {
-	int pos = ledY;
+	ledY%=WS2812_DIODCOLS;
 	if(ledY >= WS2812_DIODCOLS) return;
 	else
 	{
-		for(uint8_t i = 0; i < WS2812_DIODROWS;i++)
+		for(uint8_t i = 0; i < WS2812_DIODCOLS;i++)
 		{
-			WS2812_SetLed(colR,colG,colB,pos,i*WS2812_DIODCOLS);
+			WS2812_SetLed(colR,colG,colB,i,ledY);
 		}
 	}
 }
@@ -178,7 +179,7 @@ void WS2812_Send(void)
             TIMER.hdma[TIM_DMA_ID]->XferErrorCallback = TIM_DMAError;
             if (HAL_DMA_Start_IT(TIMER.hdma[TIM_DMA_ID], (uint32_t) WS2812_buf,
                                  (uint32_t) &TIMER.Instance->TIM_CCR,
-                                 46) != HAL_OK) {
+                                 48) != HAL_OK) {
                 DMA_Send_Stat = HAL_ERROR;
                 continue;
             }
@@ -205,9 +206,9 @@ void WS2818_TIM_DMADelayHalfCplt(DMA_HandleTypeDef *hdma)
 	if(ws2812_bufcount < WS2812_DIOD)
 		for(int i = 0; i<8;i++)
 		{
-			WS2812_buf[i]	 	= (color_buf[ws2812_bufcount].red >> (7-i))&0x1? low:high;
-			WS2812_buf[i+8]	 	= (color_buf[ws2812_bufcount].green >> (7-i))&0x1? low:high;
-			WS2812_buf[i+16]	= (color_buf[ws2812_bufcount].blue >> (7-i))&0x1? low:high;
+			WS2812_buf[i]	 	= (color_buf[ws2812_bufcount].red >> (7-i))&0x1? high:low;
+			WS2812_buf[i+8]	 	= (color_buf[ws2812_bufcount].green >> (7-i))&0x1? high:low;
+			WS2812_buf[i+16]	= (color_buf[ws2812_bufcount].blue >> (7-i))&0x1? high:low;
 		}
 	else if(ws2812_bufcount < ws2812_max)
 	{
@@ -250,9 +251,10 @@ void WS2818_TIM_DMADelayCplt(DMA_HandleTypeDef *hdma)
 	{
 		for(int i = 0; i<8;i++)
 		{
-			WS2812_buf[i+24]	 	= (color_buf[ws2812_bufcount].red >> (7-i))&0x1? low:high;
-			WS2812_buf[i+32]	 	= (color_buf[ws2812_bufcount].green >> (7-i))&0x1? low:high;
-			WS2812_buf[i+40]		= (color_buf[ws2812_bufcount].blue >> (7-i))&0x1? low:high;
+			
+			WS2812_buf[i+24]	 	= (color_buf[ws2812_bufcount].red >> (7-i))&0x1? high:low;
+			WS2812_buf[i+32]	 	= (color_buf[ws2812_bufcount].green >> (7-i))&0x1? high:low;
+			WS2812_buf[i+40]		= (color_buf[ws2812_bufcount].blue >> (7-i))&0x1? high:low;
 		}
 	}
 	else if(ws2812_bufcount < ws2812_max)
