@@ -50,7 +50,7 @@
 volatile uint32_t WS2812_buf[WS2812_SINGLE*2];
 volatile ws2812color_t color_buf[WS2812_DIOD] = {0};
 uint16_t ws2812_bufcount = 0;
-uint16_t ws2812_max = WS2812_DIOD+4;
+uint16_t ws2812_max = WS2812_DIOD+2;
 uint16_t high,low;
 uint16_t error_count = 0;
 
@@ -158,9 +158,13 @@ void WS2812_Send(void)
 			WS2812_buf[i]	 	= (color_buf[0].green << i)&0x80? high:low;
 			WS2812_buf[i+8]	 	= (color_buf[0].red << i)&0x80? high:low;
 			WS2812_buf[i+16]	= (color_buf[0].blue << i)&0x80? high:low;
+			#if WS2812_DIOD > 1
 			WS2812_buf[i+24]	= (color_buf[1].green << i)&0x80? high:low;
 			WS2812_buf[i+32]	= (color_buf[1].red << i)&0x80? high:low;
 			WS2812_buf[i+40]	= (color_buf[1].blue << i)&0x80? high:low;
+			#else 
+			memset((uint32_t *)&WS2812_buf[3], 0, WS2812_SINGLE*sizeof(uint32_t));
+			#endif
 		}
 		        HAL_StatusTypeDef DMA_Send_Stat = HAL_ERROR;
         while (DMA_Send_Stat != HAL_OK) {
@@ -194,7 +198,11 @@ void WS2812_Send(void)
                 __HAL_TIM_ENABLE(&TIMER);
             DMA_Send_Stat = HAL_OK;
         }
-		ws2812_bufcount = 2;
+				#if WS2812_DIOD > 1
+				ws2812_bufcount = 2;
+				#else 
+				ws2812_bufcount = 1;
+				#endif
 		return;
 	}
 }
