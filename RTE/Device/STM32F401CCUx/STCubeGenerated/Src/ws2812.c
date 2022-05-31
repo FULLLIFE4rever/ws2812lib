@@ -50,7 +50,7 @@
 volatile uint32_t WS2812_buf[WS2812_SINGLE*2];
 volatile ws2812color_t color_buf[WS2812_DIOD] = {0};
 uint16_t ws2812_bufcount = 0;
-uint16_t ws2812_max = WS2812_DIOD+4;
+uint16_t ws2812_max = WS2812_DIOD+2;
 uint16_t high;
 uint16_t low;
 
@@ -113,28 +113,27 @@ void WS2812_SetLed(uint8_t colR,uint8_t colG,uint8_t colB, uint16_t ledX,uint16_
 	WS2812_SetColour(colR,colG, colB, pos);
 }
 
-void WS2812_SetRow(uint8_t colR,uint8_t colG,uint8_t colB, uint16_t ledX)
+void WS2812_SetCol(uint8_t colR,uint8_t colG,uint8_t colB, uint16_t ledX)
 {
-	ledX%=WS2812_DIODCOLS;
 	if(ledX >= WS2812_DIODROWS) return;
 	else
 	{
 		for(uint8_t i = 0; i < WS2812_DIODCOLS;i++)
 		{
-			WS2812_SetLed(colR,colG,colB,ledX,i);
+			WS2812_SetLed(colR,colG,colB,ledX,i*WS2812_DIODCOLS);
 		}
 	}
 }
 
-void WS2812_SetCol(uint8_t colR,uint8_t colG,uint8_t colB, uint16_t ledY)
+void WS2812_SetRow(uint8_t colR,uint8_t colG,uint8_t colB, uint16_t ledY)
 {
-	ledY%=WS2812_DIODCOLS;
+	int pos = ledY;
 	if(ledY >= WS2812_DIODCOLS) return;
 	else
 	{
-		for(uint8_t i = 0; i < WS2812_DIODCOLS;i++)
+		for(uint8_t i = 0; i < WS2812_DIODROWS;i++)
 		{
-			WS2812_SetLed(colR,colG,colB,i,ledY);
+			WS2812_SetLed(colR,colG,colB,pos,i*WS2812_DIODCOLS);
 		}
 	}
 }
@@ -179,7 +178,7 @@ void WS2812_Send(void)
             TIMER.hdma[TIM_DMA_ID]->XferErrorCallback = TIM_DMAError;
             if (HAL_DMA_Start_IT(TIMER.hdma[TIM_DMA_ID], (uint32_t) WS2812_buf,
                                  (uint32_t) &TIMER.Instance->TIM_CCR,
-                                 48) != HAL_OK) {
+                                 46) != HAL_OK) {
                 DMA_Send_Stat = HAL_ERROR;
                 continue;
             }
@@ -206,9 +205,9 @@ void WS2818_TIM_DMADelayHalfCplt(DMA_HandleTypeDef *hdma)
 	if(ws2812_bufcount < WS2812_DIOD)
 		for(int i = 0; i<8;i++)
 		{
-			WS2812_buf[i]	 	= (color_buf[ws2812_bufcount].red >> (7-i))&0x1? high:low;
-			WS2812_buf[i+8]	 	= (color_buf[ws2812_bufcount].green >> (7-i))&0x1? high:low;
-			WS2812_buf[i+16]	= (color_buf[ws2812_bufcount].blue >> (7-i))&0x1? high:low;
+			WS2812_buf[i]	 	= (color_buf[ws2812_bufcount].red >> (7-i))&0x1? low:high;
+			WS2812_buf[i+8]	 	= (color_buf[ws2812_bufcount].green >> (7-i))&0x1? low:high;
+			WS2812_buf[i+16]	= (color_buf[ws2812_bufcount].blue >> (7-i))&0x1? low:high;
 		}
 	else if(ws2812_bufcount < ws2812_max)
 	{
@@ -251,10 +250,9 @@ void WS2818_TIM_DMADelayCplt(DMA_HandleTypeDef *hdma)
 	{
 		for(int i = 0; i<8;i++)
 		{
-			
-			WS2812_buf[i+24]	 	= (color_buf[ws2812_bufcount].red >> (7-i))&0x1? high:low;
-			WS2812_buf[i+32]	 	= (color_buf[ws2812_bufcount].green >> (7-i))&0x1? high:low;
-			WS2812_buf[i+40]		= (color_buf[ws2812_bufcount].blue >> (7-i))&0x1? high:low;
+			WS2812_buf[i+24]	 	= (color_buf[ws2812_bufcount].red >> (7-i))&0x1? low:high;
+			WS2812_buf[i+32]	 	= (color_buf[ws2812_bufcount].green >> (7-i))&0x1? low:high;
+			WS2812_buf[i+40]		= (color_buf[ws2812_bufcount].blue >> (7-i))&0x1? low:high;
 		}
 	}
 	else if(ws2812_bufcount < ws2812_max)
